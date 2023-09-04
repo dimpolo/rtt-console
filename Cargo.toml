@@ -1,0 +1,15 @@
+[package]
+name = "rtt-console"
+version = "0.1.0"
+edition = "2021"
+description = "A way to send and receive data from a target using RTT."
+categories = ["command-line-utilities", "embedded", "no-std"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/dimpolo/rtt-console"
+
+
+[dependencies]
+probe-rs = "0.20.0"
+crossterm = "0.27.0"
+anyhow = "1.0.75"
+clap = { version = "4.4.2", features = ["derive"] }
