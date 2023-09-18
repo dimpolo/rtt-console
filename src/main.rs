@@ -29,7 +29,7 @@ fn main() -> Result<()> {
     loop {
         // terminal -> RTT
         if let Some(char) = read_char()? {
-            down_channel.write(&mut core, &[char.as_u8()])?;
+            down_channel.write(&mut core, &[char.to_u8()])?;
         }
         // RTT -> terminal
         let mut buf = [0];
