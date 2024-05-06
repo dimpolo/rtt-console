@@ -13,3 +13,4 @@ probe-rs = "0.21.1"
 crossterm = "0.27.0"
 anyhow = "1.0.75"
 clap = { version = "4.4.2", features = ["derive"] }
+ascii = "1.1.0"

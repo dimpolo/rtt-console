@@ -1,12 +1,10 @@
-#![feature(ascii_char)]
-#![feature(ascii_char_variants)]
-
 mod session;
 
+use std::io;
 use std::time::Duration;
-use std::{ascii, io};
 
 use anyhow::{Context, Result};
+use ascii::ToAsciiChar;
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind};
 use crossterm::style::Print;
 use crossterm::ExecutableCommand;
@@ -29,13 +27,13 @@ fn main() -> Result<()> {
     loop {
         // terminal -> RTT
         if let Some(char) = read_char()? {
-            down_channel.write(&mut core, &[char.to_u8()])?;
+            down_channel.write(&mut core, &[char.as_byte()])?;
         }
         // RTT -> terminal
         let mut buf = [0];
         let count = up_channel.read(&mut core, &mut buf)?;
         if count > 0 {
-            if let Some(char) = buf[0].as_ascii() {
+            if let Some(char) = buf[0].to_ascii_char().ok() {
                 stdout
                     .execute(Print(char))
                     .context("ExecutableCommand::execute")?;
@@ -44,20 +42,20 @@ fn main() -> Result<()> {
     }
 }
 
-fn read_char() -> Result<Option<ascii::Char>> {
+fn read_char() -> Result<Option<ascii::AsciiChar>> {
     if !crossterm::event::poll(Duration::from_millis(1)).context("crossterm::event::poll")? {
         return Ok(None);
     }
     Ok(
         match crossterm::event::read().context("crossterm::event::read()")? {
             Event::Key(KeyEvent {
-                           code,
-                           kind: KeyEventKind::Press,
-                           ..
-                       }) => match code {
-                KeyCode::Char(c) => c.as_ascii(),
-                KeyCode::Enter => Some(ascii::Char::LineFeed),
-                KeyCode::Tab => Some(ascii::Char::CharacterTabulation),
+                code,
+                kind: KeyEventKind::Press,
+                ..
+            }) => match code {
+                KeyCode::Char(c) => c.to_ascii_char().ok(),
+                KeyCode::Enter => Some(ascii::AsciiChar::LineFeed),
+                KeyCode::Tab => Some(ascii::AsciiChar::Tab),
                 _ => None,
             },
             _ => None,
