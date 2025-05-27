@@ -1,13 +1,14 @@
 // Adapted from https://github.com/knurling-rs/probe-run
 
 use anyhow::{anyhow, bail};
+use clap::Parser;
+use probe_rs::probe::list::Lister;
+use probe_rs::probe::{DebugProbeInfo, Probe};
+use probe_rs::{Permissions, Session};
 use std::fs;
+use std::io::Read;
 use std::path::PathBuf;
 use std::str::FromStr;
-
-use clap::Parser;
-use probe_rs::DebugProbeError::ProbeSpecific;
-use probe_rs::{DebugProbeInfo, Permissions, Probe, Session};
 
 /// A RTT console
 #[derive(Parser)]
@@ -42,13 +43,17 @@ pub fn get_session() -> anyhow::Result<Session> {
 }
 
 fn lookup_probe_target(chip_name: &str, opts: &Opts) -> anyhow::Result<probe_rs::Target> {
+    let mut registry = probe_rs::config::Registry::from_builtin_families();
+
     // register chip description
     if let Some(cdp) = &opts.chip_description_path {
-        probe_rs::config::add_target_from_yaml(fs::File::open(cdp)?)?;
+        let mut s = String::new();
+        fs::File::open(cdp)?.read_to_string(&mut s)?;
+        registry.add_target_family_from_yaml(&s)?;
     }
 
     // look up target
-    let probe_target = probe_rs::config::get_target_by_name(chip_name)?;
+    let probe_target = registry.get_target_by_name(chip_name)?;
     Ok(probe_target)
 }
 
@@ -59,7 +64,7 @@ fn attach_to_probe(probe_target: probe_rs::Target, opts: &Opts) -> anyhow::Resul
         probe.attach_under_reset(probe_target, permissions)
     } else {
         let probe_attach = probe.attach(probe_target, permissions);
-        if let Err(probe_rs::Error::Probe(ProbeSpecific(e))) = &probe_attach {
+        if let Err(probe_rs::Error::Probe(e)) = &probe_attach {
             // FIXME Using `to_string().contains(...)` is a workaround as the concrete type
             // of `e` is not public and therefore does not allow downcasting.
             if e.to_string().contains("JtagNoDeviceConnected") {
@@ -84,7 +89,7 @@ Common reasons for this are faulty cables or missing permissions.
 For detailed instructions, visit: https://github.com/knurling-rs/probe-run#troubleshooting";
 
 pub fn open(opts: &Opts) -> Result<Probe, anyhow::Error> {
-    let all_probes = Probe::list_all();
+    let all_probes = Lister::new().list_all();
     let filtered_probes = if let Some(probe_opt) = opts.probe.as_deref() {
         let selector = probe_opt.parse()?;
         filter(&all_probes, &selector)

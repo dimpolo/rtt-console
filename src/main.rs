@@ -13,25 +13,28 @@ use probe_rs::rtt::Rtt;
 fn main() -> Result<()> {
     let mut session = session::get_session()?;
 
-    let memory_map = session.target().memory_map.clone();
     // Select a core.
     let mut core = session.core(0)?;
 
     // Attach to RTT
-    let mut rtt = Rtt::attach(&mut core, &memory_map)?;
-    let down_channel = rtt.down_channels().take(0).unwrap();
-    let up_channel = rtt.up_channels().take(0).unwrap();
-
+    let mut rtt = Rtt::attach(&mut core)?;
     let mut stdout = io::stdout();
 
     loop {
         // terminal -> RTT
         if let Some(char) = read_char()? {
-            down_channel.write(&mut core, &[char.as_byte()])?;
+            rtt.down_channels()
+                .first_mut()
+                .unwrap()
+                .write(&mut core, &[char.as_byte()])?;
         }
         // RTT -> terminal
         let mut buf = [0];
-        let count = up_channel.read(&mut core, &mut buf)?;
+        let count = rtt
+            .up_channels()
+            .first_mut()
+            .unwrap()
+            .read(&mut core, &mut buf)?;
         if count > 0 {
             if let Some(char) = buf[0].to_ascii_char().ok() {
                 stdout
